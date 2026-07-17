@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<!--
+  Copyright 2026 Notessensei
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>httpfun — transmission console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0c100e;
+    --ink-raised: #12171420;
+    --panel: rgba(255, 255, 255, 0.03);
+    --line: rgba(255, 255, 255, 0.09);
+    --line-soft: rgba(255, 255, 255, 0.055);
+    --text: #e8ece7;
+    --text-dim: #8b948c;
+    --accent: #d8ff4a;
+    --accent-ink: #161a06;
+    --danger: #ff7a6b;
+    --radius: 14px;
+    --font-display: "Bricolage Grotesque", sans-serif;
+    --font-mono: "IBM Plex Mono", monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { color-scheme: dark; }
+
+  body {
+    min-height: 100vh;
+    background-color: var(--ink);
+    background-image:
+      radial-gradient(ellipse 90% 55% at 50% -12%, rgba(216, 255, 74, 0.13), transparent 62%),
+      radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.055) 1px, transparent 0);
+    background-size: 100% 100%, 26px 26px;
+    color: var(--text);
+    font-family: var(--font-display);
+    display: flex;
+    justify-content: center;
+    padding: clamp(2rem, 6vh, 4.5rem) 1.25rem 5rem;
+    position: relative;
+  }
+
+  /* grain overlay */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.5;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.035 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .console {
+    width: 100%;
+    max-width: 860px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ---------- header ---------- */
+  header { margin-bottom: 2.75rem; }
+
+  .overline {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    margin-bottom: 1.1rem;
+  }
+
+  .overline::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(216, 255, 74, 0.45), transparent);
+  }
+
+  .blip {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 12px rgba(216, 255, 74, 0.9);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.45; transform: scale(0.78); }
+  }
+
+  h1 {
+    font-size: clamp(3rem, 9vw, 5.2rem);
+    font-weight: 800;
+    line-height: 0.96;
+    letter-spacing: -0.03em;
+  }
+
+  h1 .slash { color: var(--accent); }
+
+  .tagline {
+    margin-top: 1rem;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    max-width: 46ch;
+    line-height: 1.65;
+  }
+
+  /* ---------- staggered reveal ---------- */
+  .reveal {
+    opacity: 0;
+    transform: translateY(16px);
+    animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+  .reveal:nth-child(1) { animation-delay: 0.05s; }
+  .reveal:nth-child(2) { animation-delay: 0.18s; }
+  .reveal:nth-child(3) { animation-delay: 0.31s; }
+
+  @keyframes rise {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ---------- form panel ---------- */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 1.75rem;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 24px 60px -30px rgba(0, 0, 0, 0.8);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .panel::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(216, 255, 74, 0.5), transparent);
+  }
+
+  form {
+    display: grid;
+    grid-template-columns: minmax(130px, 1fr) 2.6fr auto;
+    gap: 1.1rem;
+    align-items: end;
+  }
+
+  .field { display: flex; flex-direction: column; gap: 0.5rem; }
+
+  label {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  label b { color: var(--accent); font-weight: 600; }
+
+  input {
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    color: var(--text);
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 0.8rem 0.95rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    width: 100%;
+  }
+
+  input::placeholder { color: #555e56; }
+
+  input:hover { border-color: rgba(255, 255, 255, 0.18); }
+
+  input:focus {
+    border-color: rgba(216, 255, 74, 0.65);
+    box-shadow: 0 0 0 3px rgba(216, 255, 74, 0.12);
+    background: rgba(0, 0, 0, 0.5);
+  }
+
+  button {
+    font-family: var(--font-display);
+    font-size: 0.95rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    color: var(--accent-ink);
+    background: var(--accent);
+    border: none;
+    border-radius: 9px;
+    padding: 0.82rem 1.5rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    white-space: nowrap;
+    transition: transform 0.15s, box-shadow 0.2s, filter 0.2s;
+    box-shadow: 0 8px 24px -10px rgba(216, 255, 74, 0.45);
+  }
+
+  button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 32px -12px rgba(216, 255, 74, 0.6);
+    filter: brightness(1.05);
+  }
+
+  button:active { transform: translateY(0); }
+
+  button:disabled {
+    opacity: 0.55;
+    cursor: wait;
+    transform: none;
+  }
+
+  button .arrow { transition: transform 0.2s; }
+  button:hover .arrow { transform: translateX(3px); }
+
+  .error {
+    display: none;
+    margin-top: 1rem;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--danger);
+  }
+
+  .error.visible { display: block; }
+  .error::before { content: "▲ "; }
+
+  /* ---------- log ---------- */
+  .log { margin-top: 3rem; }
+
+  .log-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.9rem;
+    margin-bottom: 1.1rem;
+  }
+
+  .log-head h2 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+
+  .counter {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--accent);
+    border: 1px solid rgba(216, 255, 74, 0.35);
+    border-radius: 999px;
+    padding: 0.18rem 0.65rem;
+    letter-spacing: 0.12em;
+  }
+
+  .table-wrap {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow-x: auto;
+    background: var(--panel);
+    backdrop-filter: blur(6px);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 520px;
+  }
+
+  thead th {
+    font-family: var(--font-mono);
+    font-size: 0.64rem;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    text-align: left;
+    padding: 0.85rem 1.25rem;
+    border-bottom: 1px solid var(--line);
+    background: rgba(0, 0, 0, 0.25);
+  }
+
+  tbody td {
+    padding: 0.9rem 1.25rem;
+    font-size: 0.9rem;
+    border-bottom: 1px solid var(--line-soft);
+    vertical-align: top;
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+
+  tbody tr {
+    animation: rowIn 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  @keyframes rowIn {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+      background: rgba(216, 255, 74, 0.12);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+      background: transparent;
+    }
+  }
+
+  td.num {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    width: 3.5rem;
+  }
+
+  .chip {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    border: 1px solid rgba(216, 255, 74, 0.4);
+    background: rgba(216, 255, 74, 0.07);
+    border-radius: 6px;
+    padding: 0.28rem 0.6rem;
+  }
+
+  td.msg { line-height: 1.55; overflow-wrap: anywhere; }
+
+  td.time {
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+    text-align: right;
+  }
+
+  .empty td {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    text-align: center;
+    padding: 2.6rem 1.25rem;
+  }
+
+  .empty .dot { color: var(--accent); }
+
+  footer {
+    margin-top: 2.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #4d554e;
+    text-align: center;
+  }
+
+  @media (max-width: 640px) {
+    form { grid-template-columns: 1fr; }
+    button { justify-content: center; }
+  }
+</style>
+</head>
+<body>
+  <main class="console">
+    <header class="reveal">
+      <p class="overline"><span class="blip"></span>Transmission console · 01</p>
+      <h1>http<span class="slash">/</span>fun</h1>
+      <p class="tagline">Type a message, pick a method — any method. Real ones like POST, or ones you invent. HTTP methods are just a convention: the wire doesn't care, as long as both ends understand.</p>
+    </header>
+
+    <section class="panel reveal">
+      <form id="dispatch-form" autocomplete="off">
+        <div class="field">
+          <label for="method"><b>01</b> Method</label>
+          <input id="method" name="method" type="text" value="POST" placeholder="TELEPORT" required>
+        </div>
+        <div class="field">
+          <label for="message"><b>02</b> Message</label>
+          <input id="message" name="message" type="text" placeholder="hello, wire…" required>
+        </div>
+        <button type="submit" id="send-btn">
+          Dispatch <span class="arrow">→</span>
+        </button>
+      </form>
+      <p class="error" id="error" role="alert"></p>
+    </section>
+
+    <section class="log reveal">
+      <div class="log-head">
+        <h2>Dispatch log</h2>
+        <span class="counter" id="counter">0 SENT</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>Method</th>
+              <th>Message</th>
+              <th style="text-align:right">Received</th>
+            </tr>
+          </thead>
+          <tbody id="log-body">
+            <tr class="empty" id="empty-row">
+              <td colspan="4"><span class="dot">●</span> no transmissions yet — send your first message</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer>httpfun · express echo relay · localhost</footer>
+  </main>
+
+<script>
+  const form = document.getElementById('dispatch-form');
+  // form.method would return the <form>'s own method attribute, not this input
+  const methodInput = document.getElementById('method');
+  const messageInput = document.getElementById('message');
+  const sendBtn = document.getElementById('send-btn');
+  const errorEl = document.getElementById('error');
+  const logBody = document.getElementById('log-body');
+  const counter = document.getElementById('counter');
+  const emptyRow = document.getElementById('empty-row');
+
+  let count = 0;
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    errorEl.classList.remove('visible');
+
+    const method = methodInput.value.trim();
+    const message = messageInput.value.trim();
+    if (!method || !message) return;
+
+    sendBtn.disabled = true;
+    sendBtn.firstChild.textContent = 'Sending ';
+
+    try {
+      // fetch() refuses to attach a body to GET/HEAD, so those two carry the
+      // message as a query string. Every other token — real or invented —
+      // goes on the wire as the actual request method.
+      const bodyless = /^(get|head)$/i.test(method);
+      const url = bodyless ? '/submit?message=' + encodeURIComponent(message) : '/submit';
+      const options = { method };
+      if (!bodyless) {
+        options.headers = { 'Content-Type': 'application/json' };
+        options.body = JSON.stringify({ message });
+      }
+
+      const res = await fetch(url, options);
+
+      if (/^head$/i.test(method)) {
+        throw new Error(res.ok
+          ? 'HEAD round-tripped fine, but HEAD responses carry no body — nothing to log.'
+          : `Server responded with ${res.status}`);
+      }
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || `Server responded with ${res.status}`);
+      }
+
+      appendRow(data);
+      messageInput.value = '';
+      messageInput.focus();
+    } catch (err) {
+      errorEl.textContent = err.message || 'Transmission failed.';
+      errorEl.classList.add('visible');
+    } finally {
+      sendBtn.disabled = false;
+      sendBtn.firstChild.textContent = 'Dispatch ';
+    }
+  });
+
+  function appendRow({ method, message, receivedAt }) {
+    if (emptyRow.parentNode) emptyRow.remove();
+    count += 1;
+
+    const tr = document.createElement('tr');
+
+    const num = document.createElement('td');
+    num.className = 'num';
+    num.textContent = String(count).padStart(2, '0');
+
+    const methodCell = document.createElement('td');
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.textContent = method;
+    methodCell.appendChild(chip);
+
+    const msg = document.createElement('td');
+    msg.className = 'msg';
+    msg.textContent = message;
+
+    const time = document.createElement('td');
+    time.className = 'time';
+    time.textContent = new Date(receivedAt || Date.now()).toLocaleTimeString();
+
+    tr.append(num, methodCell, msg, time);
+    logBody.appendChild(tr);
+
+    counter.textContent = `${count} SENT`;
+  }
+</script>
+</body>
+</html>

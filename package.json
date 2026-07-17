@@ -1,0 +1,14 @@
+{
+  "name": "httpfun",
+  "version": "1.0.0",
+  "description": "Tiny Express playground: dispatch protocol + message, log the echo",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "author": "Notessensei",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

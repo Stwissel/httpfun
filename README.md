@@ -17,4 +17,4 @@ npm install
 node server.js
 ```
 
-open your browser at [http://localhost:3000] and use the develope tools to watch the network.
+open your browser at [http://localhost:3000](http://localhost:3000) and use the develope tools to watch the network.
